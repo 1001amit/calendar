@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
 
 class CalendarApp:
@@ -7,6 +7,7 @@ class CalendarApp:
         self.root = root
         self.root.title("Calendar")
         self.current_date = datetime.now()
+        self.events = {}  
         self.create_widgets()
 
     def create_widgets(self):
@@ -46,7 +47,15 @@ class CalendarApp:
         for day in range(1, days_in_month + 1):
             row = (day + start_day) // 7 + 1
             col = (day + start_day) % 7
-            ttk.Button(self.calendar_frame, text=str(day)).grid(row=row, column=col, padx=5, pady=5)
+            date_button = ttk.Button(self.calendar_frame, text=str(day), command=lambda d=day: self.show_event_popup(d))
+            date_button.grid(row=row, column=col, padx=5, pady=5)
+
+            # Highlight current date
+            if (self.current_date.year, self.current_date.month, day) == (datetime.now().year, datetime.now().month, datetime.now().day):
+                date_button.config(style="Current.TButton")
+                
+        self.root.style = ttk.Style()
+        self.root.style.configure("Current.TButton", foreground="red")
 
     def show_prev_month(self):
         self.current_date = self.current_date.replace(day=1) - timedelta(days=1)
@@ -58,8 +67,25 @@ class CalendarApp:
         self.current_date = self.current_date.replace(day=1)
         self.draw_calendar()
 
+    def show_event_popup(self, day):
+        date = self.current_date.replace(day=day).strftime("%Y-%m-%d")
+        event_text = self.events.get(date, "")
+        event_popup = tk.Toplevel(self.root)
+        event_popup.title(f"Events on {date}")
+
+        tk.Label(event_popup, text=f"Events on {date}").pack(pady=5)
+        event_entry = tk.Entry(event_popup, width=50)
+        event_entry.pack(pady=5)
+        event_entry.insert(0, event_text)
+
+        def save_event():
+            self.events[date] = event_entry.get()
+            event_popup.destroy()
+
+        save_button = tk.Button(event_popup, text="Save", command=save_event)
+        save_button.pack(pady=5)
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = CalendarApp(root)
     root.mainloop()
-      
