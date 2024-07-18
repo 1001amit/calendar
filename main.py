@@ -1,13 +1,16 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
+import json
+import os
 
 class CalendarApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Calendar")
         self.current_date = datetime.now()
-        self.events = {}  
+        self.events_file = "events.json"
+        self.events = self.load_events()
         self.create_widgets()
 
     def create_widgets(self):
@@ -16,6 +19,12 @@ class CalendarApp:
 
         self.calendar_frame = ttk.Frame(self.root)
         self.calendar_frame.pack()
+
+        self.sidebar_frame = ttk.Frame(self.root)
+        self.sidebar_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+
+        self.event_list = tk.Listbox(self.sidebar_frame, width=30)
+        self.event_list.pack()
 
         self.buttons_frame = ttk.Frame(self.root)
         self.buttons_frame.pack(pady=10)
@@ -26,6 +35,7 @@ class CalendarApp:
         self.next_button = ttk.Button(self.buttons_frame, text=">>", command=self.show_next_month)
         self.next_button.grid(row=0, column=1, padx=5)
 
+        self.update_event_list()
         self.draw_calendar()
 
     def draw_calendar(self):
@@ -53,7 +63,7 @@ class CalendarApp:
             # Highlight current date
             if (self.current_date.year, self.current_date.month, day) == (datetime.now().year, datetime.now().month, datetime.now().day):
                 date_button.config(style="Current.TButton")
-                
+
         self.root.style = ttk.Style()
         self.root.style.configure("Current.TButton", foreground="red")
 
@@ -61,11 +71,13 @@ class CalendarApp:
         self.current_date = self.current_date.replace(day=1) - timedelta(days=1)
         self.current_date = self.current_date.replace(day=1)
         self.draw_calendar()
+        self.update_event_list()
 
     def show_next_month(self):
         self.current_date = self.current_date.replace(day=1) + timedelta(days=32)
         self.current_date = self.current_date.replace(day=1)
         self.draw_calendar()
+        self.update_event_list()
 
     def show_event_popup(self, day):
         date = self.current_date.replace(day=day).strftime("%Y-%m-%d")
@@ -80,12 +92,41 @@ class CalendarApp:
 
         def save_event():
             self.events[date] = event_entry.get()
+            self.save_events()
+            self.update_event_list()
             event_popup.destroy()
+
+        def delete_event():
+            if date in self.events:
+                del self.events[date]
+                self.save_events()
+                self.update_event_list()
+                event_popup.destroy()
 
         save_button = tk.Button(event_popup, text="Save", command=save_event)
         save_button.pack(pady=5)
+
+        delete_button = tk.Button(event_popup, text="Delete", command=delete_event)
+        delete_button.pack(pady=5)
+
+    def update_event_list(self):
+        self.event_list.delete(0, tk.END)
+        month_events = {date: event for date, event in self.events.items() if self.current_date.strftime("%Y-%m") in date}
+        for date, event in sorted(month_events.items()):
+            self.event_list.insert(tk.END, f"{date}: {event}")
+
+    def load_events(self):
+        if os.path.exists(self.events_file):
+            with open(self.events_file, "r") as file:
+                return json.load(file)
+        return {}
+
+    def save_events(self):
+        with open(self.events_file, "w") as file:
+            json.dump(self.events, file)
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = CalendarApp(root)
     root.mainloop()
+        
