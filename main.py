@@ -8,24 +8,46 @@ class CalendarApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Calendar")
+        self.root.geometry("600x400")
         self.current_date = datetime.now()
         self.events_file = "events.json"
         self.events = self.load_events()
         self.create_widgets()
 
     def create_widgets(self):
-        self.header = ttk.Label(self.root, text="", anchor="center")
+        # Apply a default theme
+        self.style = ttk.Style(self.root)
+        self.style.theme_use('clam')
+        self.style.configure('TButton', font=('Helvetica', 10), padding=5)
+        self.style.configure('TLabel', font=('Helvetica', 10), padding=5)
+        self.style.configure('Header.TLabel', font=('Helvetica', 16), padding=10)
+        self.style.configure('Current.TButton', foreground='red', background='lightgrey')
+        self.style.configure('Weekend.TButton', foreground='blue', background='lightgrey')
+
+        # Header
+        self.header = ttk.Label(self.root, text="", style="Header.TLabel", anchor="center")
         self.header.pack(pady=10)
 
+        # Theme selection
+        self.theme_label = ttk.Label(self.root, text="Select Theme:", style="TLabel")
+        self.theme_label.pack(pady=5)
+        self.theme_combobox = ttk.Combobox(self.root, values=self.style.theme_names())
+        self.theme_combobox.set(self.style.theme_use())
+        self.theme_combobox.pack(pady=5)
+        self.theme_combobox.bind("<<ComboboxSelected>>", self.change_theme)
+
+        # Calendar frame
         self.calendar_frame = ttk.Frame(self.root)
         self.calendar_frame.pack()
 
+        # Sidebar frame
         self.sidebar_frame = ttk.Frame(self.root)
         self.sidebar_frame.pack(side=tk.RIGHT, padx=10, pady=10)
 
-        self.event_list = tk.Listbox(self.sidebar_frame, width=30)
+        self.event_list = tk.Listbox(self.sidebar_frame, width=30, font=('Helvetica', 10))
         self.event_list.pack()
 
+        # Buttons frame
         self.buttons_frame = ttk.Frame(self.root)
         self.buttons_frame.pack(pady=10)
 
@@ -46,7 +68,7 @@ class CalendarApp:
 
         days_of_week = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
         for idx, day in enumerate(days_of_week):
-            ttk.Label(self.calendar_frame, text=day).grid(row=0, column=idx)
+            ttk.Label(self.calendar_frame, text=day, style="TLabel").grid(row=0, column=idx)
 
         first_day_of_month = self.current_date.replace(day=1)
         start_day = first_day_of_month.weekday()
@@ -64,8 +86,9 @@ class CalendarApp:
             if (self.current_date.year, self.current_date.month, day) == (datetime.now().year, datetime.now().month, datetime.now().day):
                 date_button.config(style="Current.TButton")
 
-        self.root.style = ttk.Style()
-        self.root.style.configure("Current.TButton", foreground="red")
+            # Highlight weekends
+            if col == 0 or col == 6:
+                date_button.config(style="Weekend.TButton")
 
     def show_prev_month(self):
         self.current_date = self.current_date.replace(day=1) - timedelta(days=1)
@@ -85,8 +108,8 @@ class CalendarApp:
         event_popup = tk.Toplevel(self.root)
         event_popup.title(f"Events on {date}")
 
-        tk.Label(event_popup, text=f"Events on {date}").pack(pady=5)
-        event_entry = tk.Entry(event_popup, width=50)
+        tk.Label(event_popup, text=f"Events on {date}", font=('Helvetica', 12)).pack(pady=5)
+        event_entry = tk.Entry(event_popup, width=50, font=('Helvetica', 10))
         event_entry.pack(pady=5)
         event_entry.insert(0, event_text)
 
@@ -103,10 +126,10 @@ class CalendarApp:
                 self.update_event_list()
                 event_popup.destroy()
 
-        save_button = tk.Button(event_popup, text="Save", command=save_event)
+        save_button = ttk.Button(event_popup, text="Save", command=save_event)
         save_button.pack(pady=5)
 
-        delete_button = tk.Button(event_popup, text="Delete", command=delete_event)
+        delete_button = ttk.Button(event_popup, text="Delete", command=delete_event)
         delete_button.pack(pady=5)
 
     def update_event_list(self):
@@ -114,6 +137,12 @@ class CalendarApp:
         month_events = {date: event for date, event in self.events.items() if self.current_date.strftime("%Y-%m") in date}
         for date, event in sorted(month_events.items()):
             self.event_list.insert(tk.END, f"{date}: {event}")
+
+    def change_theme(self, event):
+        selected_theme = self.theme_combobox.get()
+        self.style.theme_use(selected_theme)
+        self.draw_calendar()
+        self.update_event_list()
 
     def load_events(self):
         if os.path.exists(self.events_file):
